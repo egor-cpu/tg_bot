@@ -2,38 +2,37 @@ from aiogram import Router, F
 from aiogram.types import Message
 from config import Config
 from utils.logger import setup_logger
-from database import Database
-
+from database import db  
 logger = setup_logger(__name__)
 router = Router()
 
-# Инициализируем базу данных
-db = Database()
 
 @router.message(F.text == '/stats')
 async def cmd_stats(message: Message):
+    user_id = message.from_user.id
     try:
-        logger.debug(f"/stats request from {message.from_user.id}")
-        logger.error("В разработке!")
-        raise 
+        logger.debug(f"Получен запрос /stats от пользователя {user_id}")
 
-        user_id = message.from_user.id
-        stats = await db.get_user_stats(user_id)
-        
+        stats = db.get_stats(user_id) 
+
         if not stats:
-            return await message.answer("Статистика не найдена")
-            
+            await message.answer("😕 Статистика не найдена. Сыграй хотя бы одну игру!")
+            return
+
+        total_score = sum(stats['scores'])
+        recent_scores = stats['scores'][:5]
+        recent_str = ', '.join(str(s) for s in recent_scores) if recent_scores else '—'
+
         response = (
             "📊 Ваша статистика:\n\n"
-            f"🎮 Всего игр: {stats['total_games']}\n"
-            f"🏆 Побед: {stats['wins']}\n"
-            f"💥 Поражений: {stats['losses']}\n"
-            f"📅 Последняя игра: {stats['last_game']}\n"
-            f"🔥 Текущая серия: {stats['current_streak']}"
+            f"🎮 Сыграно игр: {stats['games_played']}\n"
+            f"✅ Правильных ходов: {stats['correct_count']}\n"
+            f"❌ Ошибок: {stats['incorrect_count']}\n"
+            f"🏅 Суммарный счёт: {total_score}\n"
+            f"🕹 Последние игры: {recent_str}"
         )
-        
         await message.answer(response)
 
     except Exception as e:
-        logger.error(f"Stats error: {e}", exc_info=True)
-        await message.answer("❌ Ошибка при получении статистики. Попробуйте позже")
+        logger.exception(f"Ошибка при получении статистики пользователя {user_id}")
+        await message.answer("❌ Ошибка при получении статистики. Попробуйте позже.")
