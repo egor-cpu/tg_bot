@@ -1,12 +1,39 @@
 document.addEventListener('DOMContentLoaded', () => {
     const gridSize = parseInt(localStorage.getItem('gridSize')) || 8;
     let score = 0;
+    let scoreSent = false;
     let selected = null;
     const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF'];
     
     const gameBoard = document.getElementById('game-board');
     const scoreElement = document.getElementById('score');
-    
+
+    function sendScoreToServer(score) {
+        const userId = localStorage.getItem("userId") || 1; // пока жестко 1, позже можно сделать login
+        fetch("/submit_score", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                score: score,
+                is_correct: true
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "ok") {
+                console.log("Счёт отправлен успешно!");
+            } else {
+                console.error("Ошибка при отправке:", data.message);
+            }
+        })
+        .catch(err => {
+            console.error("Сетевая ошибка:", err);
+        });
+    }
+
     function initGame() {
         gameBoard.style.gridTemplateColumns = `repeat(${gridSize}, 50px)`;
         createGrid();
@@ -152,6 +179,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 score += cell.dataset.bonus === 'true' ? 300 : 100;
             });
             scoreElement.textContent = `Счёт: ${score}`;
+            
+            if (!scoreSent && score >= 1000) {
+                sendScoreToServer(score);
+                scoreSent = true;
+            }
         }
 
         if (matchesFound) {
